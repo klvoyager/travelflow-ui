@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { Menu, Bell, ChevronDown } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -14,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { useUIStore } from '@/store/uiStore';
 import { MobileSidebar } from './Sidebar';
 import { ThemeSwitcher } from '@/components/shared/ThemeSwitcher';
 
@@ -32,19 +32,19 @@ function getInitials(name: string): string {
 
 export function Topbar({ breadcrumb }: TopbarProps) {
   const { currentUser, tenant } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const { mobileSidebarOpen, setMobileSidebarOpen } = useUIStore();
 
   return (
     <>
-      <MobileSidebar open={mobileOpen} onClose={() => setMobileOpen(false)} />
+      <MobileSidebar open={mobileSidebarOpen} onClose={() => setMobileSidebarOpen(false)} />
 
       <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-border bg-card px-4 shadow-xs">
-        {/* Mobile menu toggle */}
+        {/* Mobile menu toggle (hamburger) */}
         <Button
           variant="ghost"
           size="icon-sm"
           className="md:hidden"
-          onClick={() => setMobileOpen(true)}
+          onClick={() => setMobileSidebarOpen(true)}
         >
           <Menu className="h-5 w-5" />
         </Button>
@@ -57,7 +57,7 @@ export function Topbar({ breadcrumb }: TopbarProps) {
         {/* Right actions */}
         <div className="flex items-center gap-2">
           <ThemeSwitcher />
-          {/* Notifications */}
+
           <Button variant="ghost" size="icon-sm" className="relative">
             <Bell className="h-5 w-5" />
             <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px] bg-destructive border-0">
@@ -65,7 +65,6 @@ export function Topbar({ breadcrumb }: TopbarProps) {
             </Badge>
           </Button>
 
-          {/* Agent menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 px-2 h-9">

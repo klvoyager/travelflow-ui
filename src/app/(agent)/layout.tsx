@@ -1,7 +1,12 @@
+'use client';
+
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
+import { useSwipeToOpen } from '@/lib/hooks/useSwipeToOpen';
 
 export default function AgentLayout({ children }: { children: React.ReactNode }) {
+  useSwipeToOpen();
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
