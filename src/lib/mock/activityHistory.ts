@@ -13,7 +13,7 @@ export interface ActivityEntry {
 }
 
 export const mockActivityHistory: ActivityEntry[] = [
-  // enq-001 history
+  // enq-001 — UNDER_REVIEW
   {
     activity_id: 'act-001',
     enquiry_id: 'enq-001',
@@ -35,7 +35,7 @@ export const mockActivityHistory: ActivityEntry[] = [
     reason: 'Picked up for review',
     timestamp: '2026-05-24T09:00:00Z',
   },
-  // enq-002 history
+  // enq-002 — SOURCING_PARTNERS
   {
     activity_id: 'act-003',
     enquiry_id: 'enq-002',
@@ -67,7 +67,7 @@ export const mockActivityHistory: ActivityEntry[] = [
     reason: 'Forwarded to Europe Voyages SARL',
     timestamp: '2026-05-22T11:30:00Z',
   },
-  // enq-003 history
+  // enq-003 — QUOTE_SENT (full history through QUOTE_SENT)
   {
     activity_id: 'act-006',
     enquiry_id: 'enq-003',
@@ -75,6 +75,7 @@ export const mockActivityHistory: ActivityEntry[] = [
     changed_by: 'System',
     changed_by_id: 'system',
     is_system: true,
+    reason: 'Enquiry submitted via phone',
     timestamp: '2026-05-14T09:00:00Z',
   },
   {
@@ -95,6 +96,7 @@ export const mockActivityHistory: ActivityEntry[] = [
     changed_by: 'Sneha Pillai',
     changed_by_id: 'user-002',
     is_system: false,
+    reason: 'Assigned to in-house operations team',
     timestamp: '2026-05-15T09:00:00Z',
   },
   {
@@ -105,7 +107,7 @@ export const mockActivityHistory: ActivityEntry[] = [
     changed_by: 'System',
     changed_by_id: 'system',
     is_system: true,
-    reason: 'DMC proposal received',
+    reason: 'DMC proposal received from KLV Internal Team',
     timestamp: '2026-05-17T14:00:00Z',
   },
   {
@@ -128,5 +130,70 @@ export const mockActivityHistory: ActivityEntry[] = [
     is_system: false,
     reason: 'Quote emailed to Anjali Reddy',
     timestamp: '2026-05-20T16:00:00Z',
+  },
+  // enq-004 — ADVANCE_PAID (Singapore, no DMC, direct quote)
+  {
+    activity_id: 'act-012',
+    enquiry_id: 'enq-004',
+    to_status: 'ENQUIRY_RECEIVED',
+    changed_by: 'System',
+    changed_by_id: 'system',
+    is_system: true,
+    reason: 'Enquiry submitted via WhatsApp',
+    timestamp: '2026-05-10T10:00:00Z',
+  },
+  {
+    activity_id: 'act-013',
+    enquiry_id: 'enq-004',
+    from_status: 'ENQUIRY_RECEIVED',
+    to_status: 'UNDER_REVIEW',
+    changed_by: 'Rahul Menon',
+    changed_by_id: 'user-001',
+    is_system: false,
+    timestamp: '2026-05-10T11:30:00Z',
+  },
+  {
+    activity_id: 'act-014',
+    enquiry_id: 'enq-004',
+    from_status: 'UNDER_REVIEW',
+    to_status: 'PREPARING_QUOTE',
+    changed_by: 'Rahul Menon',
+    changed_by_id: 'user-001',
+    is_system: false,
+    reason: 'Package available in-house — skipping DMC sourcing',
+    timestamp: '2026-05-12T09:00:00Z',
+  },
+  {
+    activity_id: 'act-015',
+    enquiry_id: 'enq-004',
+    from_status: 'PREPARING_QUOTE',
+    to_status: 'QUOTE_SENT',
+    changed_by: 'Rahul Menon',
+    changed_by_id: 'user-001',
+    is_system: false,
+    reason: 'Quote sent to Priya Sharma — Singapore 5-night package',
+    timestamp: '2026-05-14T15:00:00Z',
+  },
+  {
+    activity_id: 'act-016',
+    enquiry_id: 'enq-004',
+    from_status: 'QUOTE_SENT',
+    to_status: 'ADVANCE_PAID',
+    changed_by: 'System',
+    changed_by_id: 'system',
+    is_system: true,
+    reason: 'Advance payment of ₹36,000 received via UPI',
+    timestamp: '2026-05-22T14:00:00Z',
+  },
+  // enq-005 — ENQUIRY_RECEIVED (brand new)
+  {
+    activity_id: 'act-017',
+    enquiry_id: 'enq-005',
+    to_status: 'ENQUIRY_RECEIVED',
+    changed_by: 'System',
+    changed_by_id: 'system',
+    is_system: true,
+    reason: 'Enquiry submitted via email',
+    timestamp: '2026-05-24T13:00:00Z',
   },
 ];
