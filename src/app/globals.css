@@ -1,0 +1,76 @@
+@import "tailwindcss";
+@import "../styles/themes.css";
+
+/* Bridge all themed CSS variables into Tailwind v4 utility classes */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar-background: var(--sidebar-background);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-border: var(--sidebar-border);
+
+  /* Brand — resolved as hex per active theme */
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-gold-light: var(--brand-gold-light);
+
+  /* Status per enquiry stage */
+  --color-status-received: #3B82F6;
+  --color-status-review: #EAB308;
+  --color-status-sourcing: #F97316;
+  --color-status-responded: #A855F7;
+  --color-status-preparing: #6366F1;
+  --color-status-sent: #06B6D4;
+  --color-status-revision: #F59E0B;
+  --color-status-advance: #22C55E;
+  --color-status-confirmed: #10B981;
+  --color-status-closed: #6B7280;
+
+  /* Hotness flags */
+  --color-hotness-low: #6B7280;
+  --color-hotness-medium: #F59E0B;
+  --color-hotness-high: #EF4444;
+  --color-hotness-critical: #7C3AED;
+
+  /* Typography — resolved from active theme */
+  --font-heading: var(--font-heading-family);
+  --font-body: var(--font-body-family);
+
+  /* Border radius */
+  --radius-DEFAULT: var(--radius);
+  --radius-sm: calc(var(--radius) - 0.25rem);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 0.25rem);
+  --radius-xl: calc(var(--radius) + 0.5rem);
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body-family), system-ui, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading-family), system-ui, serif;
+}
