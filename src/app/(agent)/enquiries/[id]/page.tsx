@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, User, MapPin, Users, Wallet, Clock,
   Bot, FileText, Download, Save, AlertTriangle,
+  Building2, ChevronRight, PenLine,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,21 +33,23 @@ interface ActionConfig {
   href?: string;
 }
 
-const ACTIONS: Partial<Record<EnquiryStatus, ActionConfig[]>> = {
-  ENQUIRY_RECEIVED:   [{ label: 'Pick Up Enquiry',          nextStatus: 'UNDER_REVIEW',         variant: 'default' }],
-  UNDER_REVIEW:       [{ label: 'Forward to DMC',           nextStatus: 'SOURCING_PARTNERS',     variant: 'default' },
-                       { label: 'Skip DMC — Prepare Quote', nextStatus: 'PREPARING_QUOTE',       variant: 'outline' }],
-  SOURCING_PARTNERS:  [{ label: 'Mark Partners Responded',  nextStatus: 'PARTNERS_RESPONDED',    variant: 'default' },
-                       { label: 'Add Proposal Manually',    nextStatus: 'PARTNERS_RESPONDED',    variant: 'outline' }],
-  PARTNERS_RESPONDED: [{ label: 'Build Quote',              nextStatus: 'PREPARING_QUOTE',       variant: 'default' }],
-  PREPARING_QUOTE:    [{ label: 'Send Quote',               nextStatus: 'QUOTE_SENT',            variant: 'default' }],
-  QUOTE_SENT:         [{ label: 'Mark Advance Paid',        nextStatus: 'ADVANCE_PAID',          variant: 'default' },
-                       { label: 'Request Revision',         nextStatus: 'REVISION_REQUESTED',    variant: 'outline' },
-                       { label: 'Close Enquiry',            nextStatus: 'ENQUIRY_CLOSED',        variant: 'destructive' }],
-  REVISION_REQUESTED: [{ label: 'Revise Quote',             nextStatus: 'PREPARING_QUOTE',       variant: 'default' }],
-  ADVANCE_PAID:       [{ label: 'View Trip →',                                                  variant: 'default', href: '/trips' }],
-  BOOKING_CONFIRMED:  [{ label: 'View Trip →',                                                  variant: 'default', href: '/trips' }],
-};
+function getActions(enquiryId: string): Partial<Record<EnquiryStatus, ActionConfig[]>> {
+  return {
+    ENQUIRY_RECEIVED:   [{ label: 'Pick Up Enquiry',           nextStatus: 'UNDER_REVIEW',       variant: 'default' }],
+    UNDER_REVIEW:       [{ label: 'Forward to DMC →',          href: `/enquiries/${enquiryId}/dmc`,   variant: 'default' },
+                         { label: 'Skip DMC — Build Quote →',  href: `/enquiries/${enquiryId}/quote`, variant: 'outline' }],
+    SOURCING_PARTNERS:  [{ label: 'Mark Partners Responded',   nextStatus: 'PARTNERS_RESPONDED', variant: 'default' },
+                         { label: 'DMC Proposals →',           href: `/enquiries/${enquiryId}/dmc`,   variant: 'outline' }],
+    PARTNERS_RESPONDED: [{ label: 'Build Quote →',             href: `/enquiries/${enquiryId}/quote`, variant: 'default' }],
+    PREPARING_QUOTE:    [{ label: 'Open Quote Builder →',      href: `/enquiries/${enquiryId}/quote`, variant: 'default' }],
+    QUOTE_SENT:         [{ label: 'Mark Advance Paid',         nextStatus: 'ADVANCE_PAID',       variant: 'default' },
+                         { label: 'Request Revision',          nextStatus: 'REVISION_REQUESTED', variant: 'outline' },
+                         { label: 'Close Enquiry',             nextStatus: 'ENQUIRY_CLOSED',     variant: 'destructive' }],
+    REVISION_REQUESTED: [{ label: 'Revise Quote →',            href: `/enquiries/${enquiryId}/quote`, variant: 'default' }],
+    ADVANCE_PAID:       [{ label: 'View Trip →',               href: '/trips',                   variant: 'default' }],
+    BOOKING_CONFIRMED:  [{ label: 'View Trip →',               href: '/trips',                   variant: 'default' }],
+  };
+}
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 function InfoRow({ label, value }: { label: string; value?: React.ReactNode }) {
@@ -144,7 +147,7 @@ export default function EnquiryDetailPage({ params }: { params: Promise<{ id: st
     );
   }
 
-  const actions = ACTIONS[enquiry.enquiry_status] ?? [];
+  const actions = getActions(id)[enquiry.enquiry_status] ?? [];
 
   return (
     <>
@@ -317,6 +320,33 @@ export default function EnquiryDetailPage({ params }: { params: Promise<{ id: st
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Quick links */}
+                {['UNDER_REVIEW','SOURCING_PARTNERS','PARTNERS_RESPONDED','PREPARING_QUOTE','QUOTE_SENT','REVISION_REQUESTED'].includes(enquiry.enquiry_status) && (
+                  <Card className="shadow-card">
+                    <CardContent className="p-3 space-y-1">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Quick Links</p>
+                      <button
+                        onClick={() => router.push(`/enquiries/${id}/dmc`)}
+                        className="flex items-center justify-between w-full px-3 py-2 rounded-md text-sm hover:bg-muted/50 transition-colors text-left"
+                      >
+                        <span className="flex items-center gap-2 text-foreground">
+                          <Building2 className="h-3.5 w-3.5 text-muted-foreground" /> DMC Forwarding
+                        </span>
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                      <button
+                        onClick={() => router.push(`/enquiries/${id}/quote`)}
+                        className="flex items-center justify-between w-full px-3 py-2 rounded-md text-sm hover:bg-muted/50 transition-colors text-left"
+                      >
+                        <span className="flex items-center gap-2 text-foreground">
+                          <PenLine className="h-3.5 w-3.5 text-muted-foreground" /> Quote Builder
+                        </span>
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </div>
 
