@@ -9,6 +9,21 @@ export type QuotationStatus =
 
 export type BudgetOptionName = 'Deluxe' | 'Luxury' | 'Standard' | 'Budget';
 
+export type ItineraryMealPlan = 'NONE' | 'BB' | 'HB' | 'FB' | 'AI' | 'UAI';
+
+export interface ItineraryDay {
+  day_id: string;
+  day_number: number;
+  day_title: string;
+  day_description?: string;
+  destination_city?: string;
+  hotel_name?: string;
+  meal_plan?: ItineraryMealPlan;
+  activities?: string[];
+  transfers?: string;
+  image_url?: string;
+}
+
 export interface PricingBreakdown {
   buy_price: number;
   service_charge_pct: number;
@@ -67,6 +82,7 @@ export interface Quotation {
   children_count: number;
   infants_count: number;
   budget_options: BudgetOption[];
+  itinerary_days?: ItineraryDay[];
   currency: string;
   valid_until: string;
   payment_terms?: string;

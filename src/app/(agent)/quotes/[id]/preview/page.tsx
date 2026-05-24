@@ -3,7 +3,10 @@
 import { use } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
-import { ArrowLeft, Download, Send, CheckCircle, XCircle, Building2 } from 'lucide-react';
+import {
+  ArrowLeft, Download, Send, CheckCircle, XCircle, Building2,
+  MapPin, Utensils, Bus,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -252,6 +255,111 @@ export default function QuotePreviewPage({ params }: { params: Promise<{ id: str
                 )}
               </div>
             )}
+
+            {/* Day-by-day itinerary */}
+            <div>
+              <div className="flex items-end justify-between border-b-2 border-amber-500/70 pb-2 mb-5">
+                <p className="text-xs font-bold text-amber-600 uppercase tracking-[0.18em]">Your Itinerary</p>
+                {quote.itinerary_days && quote.itinerary_days.length > 0 && (
+                  <span className="text-xs text-gray-400">
+                    {quote.itinerary_days.length} {quote.itinerary_days.length === 1 ? 'Day' : 'Days'}
+                  </span>
+                )}
+              </div>
+
+              {(!quote.itinerary_days || quote.itinerary_days.length === 0) ? (
+                <p className="text-xs text-gray-400 italic">
+                  Itinerary will appear here once days are added in the Itinerary tab.
+                </p>
+              ) : (
+                <div className="space-y-7">
+                  {quote.itinerary_days.map((day, idx) => {
+                    const mealLabel = day.meal_plan && day.meal_plan !== 'NONE'
+                      ? MEAL_PLAN_LABELS[day.meal_plan] ?? day.meal_plan
+                      : null;
+                    return (
+                      <div key={day.day_id}>
+                        {/* Day header */}
+                        <div className="flex items-start gap-3 mb-2">
+                          <span className="text-[10px] font-bold tracking-wider bg-amber-500 text-white px-2 py-1 rounded mt-0.5 shrink-0">
+                            DAY {day.day_number}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-lg font-bold font-heading text-gray-900 leading-tight">{day.day_title}</h3>
+                            {day.destination_city && (
+                              <p className="text-sm text-gray-500 italic flex items-center gap-1 mt-0.5">
+                                <MapPin className="h-3 w-3" /> {day.destination_city}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Hotel + meals row */}
+                        {(day.hotel_name || mealLabel) && (
+                          <div className="flex flex-wrap gap-3 ml-[60px] mb-2 text-xs">
+                            {day.hotel_name && (
+                              <span className="flex items-center gap-1 text-gray-600">
+                                <Building2 className="h-3 w-3 text-gray-400" />
+                                <span className="font-medium">{day.hotel_name}</span>
+                              </span>
+                            )}
+                            {mealLabel && (
+                              <span className="flex items-center gap-1 text-gray-600">
+                                <Utensils className="h-3 w-3 text-gray-400" />
+                                <span>{mealLabel}</span>
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Image */}
+                        {day.image_url && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={day.image_url}
+                            alt={day.day_title}
+                            className="ml-[60px] mt-2 mb-3 rounded-lg object-cover w-full max-h-40 border border-gray-100"
+                          />
+                        )}
+
+                        {/* Description */}
+                        {day.day_description && (
+                          <p className="ml-[60px] text-sm text-gray-700 leading-relaxed mb-2 whitespace-pre-line">
+                            {day.day_description}
+                          </p>
+                        )}
+
+                        {/* Activities */}
+                        {day.activities && day.activities.length > 0 && (
+                          <div className="ml-[60px] mb-2">
+                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Activities</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {day.activities.map((act, i) => (
+                                <span key={i} className="text-[11px] bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">
+                                  {act}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Transfers */}
+                        {day.transfers && (
+                          <p className="ml-[60px] text-xs text-gray-500 italic flex items-center gap-1.5">
+                            <Bus className="h-3 w-3" /> {day.transfers}
+                          </p>
+                        )}
+
+                        {/* Divider */}
+                        {idx < (quote.itinerary_days?.length ?? 0) - 1 && (
+                          <div className="ml-[60px] mt-5 border-t border-gray-100" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             <Separator className="bg-gray-100" />
 

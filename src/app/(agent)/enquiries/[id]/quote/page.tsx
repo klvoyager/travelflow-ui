@@ -21,6 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Switch } from '@/components/ui/switch';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { PricingEnginePanel } from '@/components/quote/PricingEnginePanel';
+import { ItineraryBuilder } from '@/components/quote/ItineraryBuilder';
 import { cn, formatDateTime } from '@/lib/utils';
 import { useEnquiry } from '@/lib/hooks/useEnquiries';
 import { useProposals } from '@/lib/hooks/useDMC';
@@ -28,7 +29,7 @@ import { useQuote, calculatePricing } from '@/lib/hooks/useQuote';
 import { useQuoteStore } from '@/store/quoteStore';
 import { useEnquiryStore } from '@/store/enquiryStore';
 import { useAuth } from '@/lib/hooks/useAuth';
-import type { Quotation, BudgetOption, BudgetOptionName, PricingBreakdown } from '@/lib/types';
+import type { Quotation, BudgetOption, BudgetOptionName, PricingBreakdown, ItineraryDay } from '@/lib/types';
 
 const OPTION_NAMES: BudgetOptionName[] = ['Standard', 'Deluxe', 'Luxury', 'Budget'];
 const MEAL_PLANS = ['RO', 'BB', 'HB', 'FB', 'AI', 'UAI'];
@@ -168,15 +169,30 @@ export default function QuoteBuilderPage({ params }: { params: Promise<{ id: str
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
 
-  // Init quote from store or create new
+  // Itinerary actions read straight from the store so drag-reorder is responsive
+  const itineraryDays = useQuoteStore((s) => {
+    const id = quote?.quotation_id;
+    if (!id) return [] as ItineraryDay[];
+    return s.quotes.find((q) => q.quotation_id === id)?.itinerary_days ?? [];
+  });
+  const addItineraryDay = useQuoteStore((s) => s.addItineraryDay);
+  const updateItineraryDay = useQuoteStore((s) => s.updateItineraryDay);
+  const removeItineraryDay = useQuoteStore((s) => s.removeItineraryDay);
+  const reorderItineraryDays = useQuoteStore((s) => s.reorderItineraryDays);
+  const importFromPackage = useQuoteStore((s) => s.importFromPackage);
+
+  // Init quote from store or create new. New quotes are saved to the store
+  // immediately so itinerary actions (which target by quotation_id) have a row to mutate.
   useEffect(() => {
     if (!enquiry) return;
     if (savedQuote) {
       setQuote(savedQuote);
     } else {
-      setQuote(makeNewQuote(enquiry, currentUser.user_id, currentUser.full_name));
+      const fresh = makeNewQuote(enquiry, currentUser.user_id, currentUser.full_name);
+      setQuote(fresh);
+      saveDraft(fresh);
     }
-  }, [enquiry, savedQuote, currentUser]);
+  }, [enquiry, savedQuote, currentUser, saveDraft]);
 
   const update = useCallback((patch: Partial<Quotation>) => {
     setQuote((prev) => prev ? { ...prev, ...patch } : prev);
@@ -231,7 +247,9 @@ export default function QuoteBuilderPage({ params }: { params: Promise<{ id: str
     if (!quote) return;
     setSaving(true);
     await new Promise((r) => setTimeout(r, 600));
-    saveDraft(quote);
+    // Itinerary lives in the store (updated live by ItineraryBuilder).
+    // Merge it in so we don't clobber it with stale local state.
+    saveDraft({ ...quote, itinerary_days: itineraryDays });
     setLastSaved(new Date().toISOString());
     setSaving(false);
     if (!sendAfter) toast.success('Draft saved');
@@ -240,7 +258,13 @@ export default function QuoteBuilderPage({ params }: { params: Promise<{ id: str
   const handleSendToGuest = async () => {
     if (!quote || !enquiry) return;
     await handleSave(true);
-    const sent: Quotation = { ...quote, status: 'SENT', sent_at: new Date().toISOString(), version: quote.version + 1 };
+    const sent: Quotation = {
+      ...quote,
+      itinerary_days: itineraryDays,
+      status: 'SENT',
+      sent_at: new Date().toISOString(),
+      version: quote.version + 1,
+    };
     saveDraft(sent);
     setQuote(sent);
     updateStatus(id, 'QUOTE_SENT', currentUser.full_name, currentUser.user_id, `Quote v${sent.version} sent to ${enquiry.customer_name}`);
@@ -637,6 +661,24 @@ export default function QuoteBuilderPage({ params }: { params: Promise<{ id: str
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Itinerary Builder — full width below the main grid */}
+      <div className="border border-border rounded-lg bg-card overflow-hidden">
+        <div className="px-5 py-3 bg-muted/30 border-b border-border">
+          <h3 className="text-sm font-semibold">Day-by-Day Itinerary</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">Drag to reorder. Imported package days can be edited freely.</p>
+        </div>
+        <div className="p-5">
+          <ItineraryBuilder
+            days={itineraryDays}
+            onAddDay={() => addItineraryDay(quote.quotation_id)}
+            onUpdateDay={(dayId, updates) => updateItineraryDay(quote.quotation_id, dayId, updates)}
+            onRemoveDay={(dayId) => removeItineraryDay(quote.quotation_id, dayId)}
+            onReorder={(activeId, overId) => reorderItineraryDays(quote.quotation_id, activeId, overId)}
+            onImportFromPackage={(days) => importFromPackage(quote.quotation_id, days)}
+          />
         </div>
       </div>
 

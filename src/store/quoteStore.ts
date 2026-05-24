@@ -1,6 +1,15 @@
 import { create } from 'zustand';
-import type { Quotation, BudgetOption } from '@/lib/types';
+import type { Quotation, BudgetOption, ItineraryDay } from '@/lib/types';
 import { mockQuotes } from '@/lib/mock';
+
+function renumber(days: ItineraryDay[]): ItineraryDay[] {
+  return days.map((d, i) => ({ ...d, day_number: i + 1 }));
+}
+
+function genId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+  return `day-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 interface QuoteState {
   quotes: Quotation[];
@@ -9,6 +18,12 @@ interface QuoteState {
   updateBudgetOption: (quoteId: string, option: BudgetOption) => void;
   removeBudgetOption: (quoteId: string, optionId: string) => void;
   incrementVersion: (quoteId: string) => void;
+  // Itinerary actions
+  addItineraryDay: (quoteId: string) => void;
+  updateItineraryDay: (quoteId: string, dayId: string, updates: Partial<ItineraryDay>) => void;
+  removeItineraryDay: (quoteId: string, dayId: string) => void;
+  reorderItineraryDays: (quoteId: string, activeId: string, overId: string) => void;
+  importFromPackage: (quoteId: string, days: ItineraryDay[]) => void;
 }
 
 export const useQuoteStore = create<QuoteState>((set, get) => ({
@@ -57,5 +72,74 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       quotes: state.quotes.map((q) =>
         q.quotation_id === quoteId ? { ...q, version: q.version + 1, updated_at: new Date().toISOString() } : q
       ),
+    })),
+
+  addItineraryDay: (quoteId) =>
+    set((state) => ({
+      quotes: state.quotes.map((q) => {
+        if (q.quotation_id !== quoteId) return q;
+        const days = q.itinerary_days ?? [];
+        const newDay: ItineraryDay = {
+          day_id: genId(),
+          day_number: days.length + 1,
+          day_title: `Day ${days.length + 1}`,
+          activities: [],
+        };
+        return { ...q, itinerary_days: [...days, newDay], updated_at: new Date().toISOString() };
+      }),
+    })),
+
+  updateItineraryDay: (quoteId, dayId, updates) =>
+    set((state) => ({
+      quotes: state.quotes.map((q) => {
+        if (q.quotation_id !== quoteId) return q;
+        const days = q.itinerary_days ?? [];
+        return {
+          ...q,
+          itinerary_days: days.map((d) => (d.day_id === dayId ? { ...d, ...updates } : d)),
+          updated_at: new Date().toISOString(),
+        };
+      }),
+    })),
+
+  removeItineraryDay: (quoteId, dayId) =>
+    set((state) => ({
+      quotes: state.quotes.map((q) => {
+        if (q.quotation_id !== quoteId) return q;
+        const days = q.itinerary_days ?? [];
+        return {
+          ...q,
+          itinerary_days: renumber(days.filter((d) => d.day_id !== dayId)),
+          updated_at: new Date().toISOString(),
+        };
+      }),
+    })),
+
+  reorderItineraryDays: (quoteId, activeId, overId) =>
+    set((state) => ({
+      quotes: state.quotes.map((q) => {
+        if (q.quotation_id !== quoteId) return q;
+        const days = q.itinerary_days ?? [];
+        const fromIdx = days.findIndex((d) => d.day_id === activeId);
+        const toIdx = days.findIndex((d) => d.day_id === overId);
+        if (fromIdx === -1 || toIdx === -1) return q;
+        const reordered = [...days];
+        const [moved] = reordered.splice(fromIdx, 1);
+        reordered.splice(toIdx, 0, moved);
+        return {
+          ...q,
+          itinerary_days: renumber(reordered),
+          updated_at: new Date().toISOString(),
+        };
+      }),
+    })),
+
+  importFromPackage: (quoteId, days) =>
+    set((state) => ({
+      quotes: state.quotes.map((q) => {
+        if (q.quotation_id !== quoteId) return q;
+        const fresh = days.map((d, i) => ({ ...d, day_id: genId(), day_number: i + 1 }));
+        return { ...q, itinerary_days: fresh, updated_at: new Date().toISOString() };
+      }),
     })),
 }));

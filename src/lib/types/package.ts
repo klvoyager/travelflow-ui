@@ -28,7 +28,7 @@ export type PackageInclusion =
   | 'INSURANCE'
   | 'GUIDE';
 
-export interface ItineraryDay {
+export interface PackageItineraryDay {
   day: number;
   title: string;
   description: string;
@@ -60,7 +60,7 @@ export interface TravelPackage {
   min_pax: number;
   max_pax?: number;
   inclusions: PackageInclusion[];
-  itinerary: ItineraryDay[];
+  itinerary: PackageItineraryDay[];
   pricing_tiers: PackagePricingTier[];
   cover_image_url?: string;
   gallery_urls?: string[];
