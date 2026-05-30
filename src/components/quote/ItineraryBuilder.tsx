@@ -200,7 +200,10 @@ export function ItineraryBuilder({
                     )}
                   />
                   {selectedId === day.day_id && (
-                    <div className="col-span-full border border-border rounded-lg bg-muted/20 p-4">
+                    <div
+                      className="col-span-full border border-border rounded-lg bg-muted/20 p-4"
+                      ref={(el) => el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })}
+                    >
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                           <Pencil className="h-3.5 w-3.5 text-brand-gold" />
