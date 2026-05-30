@@ -66,7 +66,7 @@ function convertPackageDays(days: PackageItineraryDay[], destCity?: string): Iti
 
 interface ItineraryBuilderProps {
   days: ItineraryDay[];
-  onAddDay: () => void;
+  onAddDay: (seed?: Pick<ItineraryDay, 'destination_city' | 'hotel_name' | 'meal_plan'>, afterDayId?: string) => void;
   onUpdateDay: (id: string, updates: Partial<ItineraryDay>) => void;
   onRemoveDay: (id: string) => void;
   onReorder: (activeId: string, overId: string) => void;
@@ -111,10 +111,10 @@ export function ItineraryBuilder({
   };
 
   const duplicate = (day: ItineraryDay) => {
-    // Simple approach: add a new day, then update it with the duplicate's data
-    onAddDay();
-    // The store appends at the end; we can't easily get the new ID synchronously without a callback.
-    // Acceptable trade-off: add then user can edit. Alternatively expose an insertAt action later.
+    onAddDay(
+      { destination_city: day.destination_city, hotel_name: day.hotel_name, meal_plan: day.meal_plan },
+      day.day_id,
+    );
   };
 
   const handleImportPackage = (pkgId: string) => {
@@ -131,7 +131,13 @@ export function ItineraryBuilder({
       {/* Action bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" className="gap-1.5" onClick={onAddDay}>
+          <Button size="sm" className="gap-1.5" onClick={() => {
+            const last = days[days.length - 1];
+            onAddDay(
+              last ? { destination_city: last.destination_city, hotel_name: last.hotel_name, meal_plan: last.meal_plan } : undefined,
+              last?.day_id,
+            );
+          }}>
             <Plus className="h-3.5 w-3.5" /> Add Day
           </Button>
           <DropdownMenu>

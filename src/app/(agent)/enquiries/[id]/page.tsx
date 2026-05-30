@@ -46,8 +46,10 @@ function getActions(enquiryId: string): Partial<Record<EnquiryStatus, ActionConf
                          { label: 'Request Revision',          nextStatus: 'REVISION_REQUESTED', variant: 'outline' },
                          { label: 'Close Enquiry',             nextStatus: 'ENQUIRY_CLOSED',     variant: 'destructive' }],
     REVISION_REQUESTED: [{ label: 'Revise Quote →',            href: `/enquiries/${enquiryId}/quote`, variant: 'default' }],
-    ADVANCE_PAID:       [{ label: 'View Trip →',               href: '/trips',                   variant: 'default' }],
-    BOOKING_CONFIRMED:  [{ label: 'View Trip →',               href: '/trips',                   variant: 'default' }],
+    ADVANCE_PAID:       [{ label: 'View Quote →',               href: `/enquiries/${enquiryId}/quote`, variant: 'default' },
+                         { label: 'View Trip →',               href: '/trips',                   variant: 'outline' }],
+    BOOKING_CONFIRMED:  [{ label: 'View Quote →',               href: `/enquiries/${enquiryId}/quote`, variant: 'outline' },
+                         { label: 'View Trip →',               href: '/trips',                   variant: 'default' }],
   };
 }
 
@@ -322,7 +324,7 @@ export default function EnquiryDetailPage({ params }: { params: Promise<{ id: st
                 </Card>
 
                 {/* Quick links */}
-                {['UNDER_REVIEW','SOURCING_PARTNERS','PARTNERS_RESPONDED','PREPARING_QUOTE','QUOTE_SENT','REVISION_REQUESTED'].includes(enquiry.enquiry_status) && (
+                {['UNDER_REVIEW','SOURCING_PARTNERS','PARTNERS_RESPONDED','PREPARING_QUOTE','QUOTE_SENT','REVISION_REQUESTED','ADVANCE_PAID','BOOKING_CONFIRMED'].includes(enquiry.enquiry_status) && (
                   <Card className="shadow-card">
                     <CardContent className="p-3 space-y-1">
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Quick Links</p>

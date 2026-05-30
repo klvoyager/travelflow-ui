@@ -210,10 +210,10 @@ export default function QuotePreviewPage({ params }: { params: Promise<{ id: str
                     <tr className="bg-gray-900">
                       <td className="px-4 py-3 text-xs font-semibold text-white">Group Total</td>
                       {quote.budget_options.map((opt) => {
-                        const adult = (opt.adult_pricing?.breakdown.final_selling_price ?? 0) * quote.adults_count;
-                        const cwb = (opt.child_with_bed_pricing?.breakdown.final_selling_price ?? 0) * Math.max(0, quote.children_count - 1);
-                        const cnb = (opt.child_without_bed_pricing?.breakdown.final_selling_price ?? 0);
-                        const total = adult + cwb + cnb;
+                        const adult  = (opt.adult_pricing?.breakdown.final_selling_price ?? 0) * (quote.adults_count ?? 0);
+                        const child  = (opt.child_with_bed_pricing?.breakdown.final_selling_price ?? 0) * (quote.children_count ?? 0);
+                        const infant = (opt.infant_pricing?.breakdown.final_selling_price ?? 0) * (quote.infants_count ?? 0);
+                        const total = adult + child + infant;
                         return (
                           <td key={opt.option_id} className="px-4 py-3 text-center font-bold text-white text-base">
                             {total > 0 ? fmt(total) : '—'}

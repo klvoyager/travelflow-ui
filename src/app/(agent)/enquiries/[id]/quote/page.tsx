@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useCallback, useEffect } from 'react';
+import { use, useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { differenceInDays, format, parseISO, addDays } from 'date-fns';
 import {
@@ -58,6 +58,7 @@ function DatePickerButton({ value, onChange, placeholder }: {
         <Calendar
           mode="single"
           selected={selected}
+          defaultMonth={selected}
           onSelect={(d) => { if (d) { onChange(format(d, 'yyyy-MM-dd')); setOpen(false); } }}
         />
       </PopoverContent>
@@ -169,12 +170,12 @@ export default function QuoteBuilderPage({ params }: { params: Promise<{ id: str
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
 
-  // Itinerary actions read straight from the store so drag-reorder is responsive
-  const itineraryDays = useQuoteStore((s) => {
-    const id = quote?.quotation_id;
-    if (!id) return [] as ItineraryDay[];
-    return s.quotes.find((q) => q.quotation_id === id)?.itinerary_days ?? [];
-  });
+  // Stable selector — never closes over non-store state; derive itineraryDays outside
+  const storeQuotes = useQuoteStore((s) => s.quotes);
+  const itineraryDays = useMemo(
+    () => storeQuotes.find((q) => q.quotation_id === quote?.quotation_id)?.itinerary_days ?? [],
+    [storeQuotes, quote?.quotation_id],
+  );
   const addItineraryDay = useQuoteStore((s) => s.addItineraryDay);
   const updateItineraryDay = useQuoteStore((s) => s.updateItineraryDay);
   const removeItineraryDay = useQuoteStore((s) => s.removeItineraryDay);
@@ -314,10 +315,10 @@ export default function QuoteBuilderPage({ params }: { params: Promise<{ id: str
   // Group total
   const groupTotal = (() => {
     if (!currentOption) return 0;
-    const adult = (currentOption.adult_pricing?.breakdown.final_selling_price ?? 0) * quote.adults_count;
-    const cwb = (currentOption.child_with_bed_pricing?.breakdown.final_selling_price ?? 0) * Math.max(0, quote.children_count - 1);
-    const cnb = (currentOption.child_without_bed_pricing?.breakdown.final_selling_price ?? 0);
-    return adult + cwb + cnb;
+    const adult  = (currentOption.adult_pricing?.breakdown.final_selling_price ?? 0) * (quote.adults_count ?? 0);
+    const child  = (currentOption.child_with_bed_pricing?.breakdown.final_selling_price ?? 0) * (quote.children_count ?? 0);
+    const infant = (currentOption.infant_pricing?.breakdown.final_selling_price ?? 0) * (quote.infants_count ?? 0);
+    return adult + child + infant;
   })();
 
   const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
@@ -346,7 +347,11 @@ export default function QuoteBuilderPage({ params }: { params: Promise<{ id: str
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
             Save Draft
           </Button>
-          <Button variant="outline" size="sm" onClick={() => router.push(`/quotes/${quote.quotation_id}/preview`)} className="gap-1.5">
+          <Button variant="outline" size="sm" onClick={async () => {
+            if (!quote) return;
+            saveDraft({ ...quote, itinerary_days: itineraryDays });
+            router.push(`/quotes/${quote.quotation_id}/preview`);
+          }} className="gap-1.5">
             <Eye className="h-3.5 w-3.5" /> Preview
           </Button>
           <Button size="sm" onClick={() => setSendDialogOpen(true)} className="gap-1.5">
@@ -596,37 +601,30 @@ export default function QuoteBuilderPage({ params }: { params: Promise<{ id: str
                 })}
               />
 
-              {quote.children_count > 0 && (
-                <>
-                  <PricingEnginePanel
-                    label="Child with Bed"
-                    initialBuyPrice={currentOption?.child_with_bed_pricing?.buy_price ?? 0}
-                    initialApplyTds={true}
-                    onChange={(bd) => updateOption(currentOption?.option_id, {
-                      child_with_bed_pricing: { buy_price: bd.buy_price, breakdown: bd },
-                    })}
-                  />
-                  <PricingEnginePanel
-                    label="Child without Bed"
-                    initialBuyPrice={currentOption?.child_without_bed_pricing?.buy_price ?? 0}
-                    initialApplyTds={true}
-                    onChange={(bd) => updateOption(currentOption?.option_id, {
-                      child_without_bed_pricing: { buy_price: bd.buy_price, breakdown: bd },
-                    })}
-                  />
-                </>
-              )}
-
-              {quote.infants_count > 0 && (
-                <PricingEnginePanel
-                  label="Infant"
-                  initialBuyPrice={currentOption?.infant_pricing?.buy_price ?? 0}
-                  initialApplyTds={false}
-                  onChange={(bd) => updateOption(currentOption?.option_id, {
-                    infant_pricing: { buy_price: bd.buy_price, breakdown: bd },
-                  })}
-                />
-              )}
+              <PricingEnginePanel
+                label="Child with Bed"
+                initialBuyPrice={currentOption?.child_with_bed_pricing?.buy_price ?? 0}
+                initialApplyTds={true}
+                onChange={(bd) => updateOption(currentOption?.option_id, {
+                  child_with_bed_pricing: { buy_price: bd.buy_price, breakdown: bd },
+                })}
+              />
+              <PricingEnginePanel
+                label="Child without Bed"
+                initialBuyPrice={currentOption?.child_without_bed_pricing?.buy_price ?? 0}
+                initialApplyTds={true}
+                onChange={(bd) => updateOption(currentOption?.option_id, {
+                  child_without_bed_pricing: { buy_price: bd.buy_price, breakdown: bd },
+                })}
+              />
+              <PricingEnginePanel
+                label="Infant"
+                initialBuyPrice={currentOption?.infant_pricing?.buy_price ?? 0}
+                initialApplyTds={false}
+                onChange={(bd) => updateOption(currentOption?.option_id, {
+                  infant_pricing: { buy_price: bd.buy_price, breakdown: bd },
+                })}
+              />
             </div>
 
             {/* Quick summary */}
@@ -673,7 +671,7 @@ export default function QuoteBuilderPage({ params }: { params: Promise<{ id: str
         <div className="p-5">
           <ItineraryBuilder
             days={itineraryDays}
-            onAddDay={() => addItineraryDay(quote.quotation_id)}
+            onAddDay={(seed, afterDayId) => addItineraryDay(quote.quotation_id, seed, afterDayId)}
             onUpdateDay={(dayId, updates) => updateItineraryDay(quote.quotation_id, dayId, updates)}
             onRemoveDay={(dayId) => removeItineraryDay(quote.quotation_id, dayId)}
             onReorder={(activeId, overId) => reorderItineraryDays(quote.quotation_id, activeId, overId)}

@@ -19,7 +19,7 @@ interface QuoteState {
   removeBudgetOption: (quoteId: string, optionId: string) => void;
   incrementVersion: (quoteId: string) => void;
   // Itinerary actions
-  addItineraryDay: (quoteId: string) => void;
+  addItineraryDay: (quoteId: string, seed?: Pick<ItineraryDay, 'destination_city' | 'hotel_name' | 'meal_plan'>, afterDayId?: string) => void;
   updateItineraryDay: (quoteId: string, dayId: string, updates: Partial<ItineraryDay>) => void;
   removeItineraryDay: (quoteId: string, dayId: string) => void;
   reorderItineraryDays: (quoteId: string, activeId: string, overId: string) => void;
@@ -74,18 +74,28 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       ),
     })),
 
-  addItineraryDay: (quoteId) =>
+  addItineraryDay: (quoteId, seed, afterDayId) =>
     set((state) => ({
       quotes: state.quotes.map((q) => {
         if (q.quotation_id !== quoteId) return q;
         const days = q.itinerary_days ?? [];
-        const newDay: ItineraryDay = {
+        const stub: ItineraryDay = {
           day_id: genId(),
-          day_number: days.length + 1,
-          day_title: `Day ${days.length + 1}`,
+          day_number: 0,
+          day_title: '',
           activities: [],
+          destination_city: seed?.destination_city,
+          hotel_name: seed?.hotel_name,
+          meal_plan: seed?.meal_plan,
         };
-        return { ...q, itinerary_days: [...days, newDay], updated_at: new Date().toISOString() };
+        const insertIdx = afterDayId ? days.findIndex((d) => d.day_id === afterDayId) : -1;
+        const spliced = insertIdx !== -1
+          ? [...days.slice(0, insertIdx + 1), stub, ...days.slice(insertIdx + 1)]
+          : [...days, stub];
+        const renumbered = renumber(spliced).map((d) =>
+          d.day_id === stub.day_id ? { ...d, day_title: `Day ${d.day_number}` } : d
+        );
+        return { ...q, itinerary_days: renumbered, updated_at: new Date().toISOString() };
       }),
     })),
 
