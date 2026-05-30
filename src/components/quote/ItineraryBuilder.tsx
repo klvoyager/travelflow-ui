@@ -1,19 +1,19 @@
 'use client';
 
-import { useState, useMemo, KeyboardEvent } from 'react';
+import { useState, useMemo, KeyboardEvent, Fragment } from 'react';
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor,
-  useSensor, useSensors, type DragEndEvent,
+  useSensor, useSensors, type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core';
 import {
   SortableContext, sortableKeyboardCoordinates,
-  useSortable, verticalListSortingStrategy,
+  useSortable, rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  GripVertical, Plus, Trash2, Copy, ChevronDown, ChevronUp,
-  ArrowUp, ArrowDown, MapPin, Building2, Utensils, Bus, Image as ImageIcon,
-  ChevronsDownUp, ChevronsUpDown, Package as PackageIcon, CalendarDays,
+  Plus, Trash2, Copy, ChevronDown, GripVertical,
+  MapPin, Building2, Utensils, Bus, Image as ImageIcon,
+  Package as PackageIcon, CalendarDays, X, Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -76,23 +76,14 @@ interface ItineraryBuilderProps {
 export function ItineraryBuilder({
   days, onAddDay, onUpdateDay, onRemoveDay, onReorder, onImportFromPackage,
 }: ItineraryBuilderProps) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set(days.map((d) => d.day_id)));
-
-  const isExpanded = (id: string) => expandedIds.has(id);
-  const toggleExpand = (id: string) =>
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-
-  const expandAll = () => setExpandedIds(new Set(days.map((d) => d.day_id)));
-  const collapseAll = () => setExpandedIds(new Set());
+  const handleDragStart = (_e: DragStartEvent) => setSelectedId(null);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -101,20 +92,18 @@ export function ItineraryBuilder({
     }
   };
 
-  const moveUp = (idx: number) => {
-    if (idx === 0) return;
-    onReorder(days[idx].day_id, days[idx - 1].day_id);
-  };
-  const moveDown = (idx: number) => {
-    if (idx === days.length - 1) return;
-    onReorder(days[idx].day_id, days[idx + 1].day_id);
-  };
-
   const duplicate = (day: ItineraryDay) => {
     onAddDay(
       { destination_city: day.destination_city, hotel_name: day.hotel_name, meal_plan: day.meal_plan },
       day.day_id,
     );
+  };
+
+  const handleRemove = (day: ItineraryDay) => {
+    const hasContent = day.day_title && day.day_title !== `Day ${day.day_number}`;
+    if (hasContent && !confirm(`Remove "${day.day_title}"?`)) return;
+    if (selectedId === day.day_id) setSelectedId(null);
+    onRemoveDay(day.day_id);
   };
 
   const handleImportPackage = (pkgId: string) => {
@@ -169,22 +158,10 @@ export function ItineraryBuilder({
           </DropdownMenu>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs gap-1.5">
-            <CalendarDays className="h-3 w-3" />
-            {days.length} {days.length === 1 ? 'Day' : 'Days'} / {summaryNights} {summaryNights === 1 ? 'Night' : 'Nights'}
-          </Badge>
-          {days.length > 0 && (
-            <>
-              <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={expandAll}>
-                <ChevronsUpDown className="h-3 w-3" /> Expand All
-              </Button>
-              <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={collapseAll}>
-                <ChevronsDownUp className="h-3 w-3" /> Collapse All
-              </Button>
-            </>
-          )}
-        </div>
+        <Badge variant="outline" className="text-xs gap-1.5">
+          <CalendarDays className="h-3 w-3" />
+          {days.length} {days.length === 1 ? 'Day' : 'Days'} / {summaryNights} {summaryNights === 1 ? 'Night' : 'Nights'}
+        </Badge>
       </div>
 
       {/* Empty state */}
@@ -193,32 +170,77 @@ export function ItineraryBuilder({
           <CalendarDays className="h-10 w-10 text-muted-foreground/50 mb-3" />
           <p className="text-sm font-medium text-foreground">No itinerary days yet</p>
           <p className="text-xs text-muted-foreground mt-1 mb-4">Add your first day or import from a package.</p>
-          <Button size="sm" className="gap-1.5" onClick={onAddDay}>
+          <Button size="sm" className="gap-1.5" onClick={() => onAddDay()}>
             <Plus className="h-3.5 w-3.5" /> Add Day
           </Button>
         </div>
       )}
 
-      {/* Day list */}
+      {/* Kanban Grid */}
       {days.length > 0 && (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={days.map((d) => d.day_id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2.5">
-              {days.map((day, idx) => (
-                <SortableDayCard
-                  key={day.day_id}
-                  day={day}
-                  isFirst={idx === 0}
-                  isLast={idx === days.length - 1}
-                  expanded={isExpanded(day.day_id)}
-                  onToggleExpand={() => toggleExpand(day.day_id)}
-                  onUpdate={(updates) => onUpdateDay(day.day_id, updates)}
-                  onRemove={() => onRemoveDay(day.day_id)}
-                  onMoveUp={() => moveUp(idx)}
-                  onMoveDown={() => moveDown(idx)}
-                  onDuplicate={() => duplicate(day)}
-                />
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={days.map((d) => d.day_id)} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
+              {days.map((day) => (
+                <Fragment key={day.day_id}>
+                  <KanbanCard
+                    day={day}
+                    isSelected={selectedId === day.day_id}
+                    onSelect={() => setSelectedId(selectedId === day.day_id ? null : day.day_id)}
+                    onDuplicate={() => duplicate(day)}
+                    onRemove={() => handleRemove(day)}
+                    onAddBelow={() => onAddDay(
+                      { destination_city: day.destination_city, hotel_name: day.hotel_name, meal_plan: day.meal_plan },
+                      day.day_id,
+                    )}
+                  />
+                  {selectedId === day.day_id && (
+                    <div className="col-span-full border border-border rounded-lg bg-muted/20 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          <Pencil className="h-3.5 w-3.5 text-brand-gold" />
+                          Day {day.day_number}
+                          {day.day_title && (
+                            <span className="text-muted-foreground font-normal">— {day.day_title}</span>
+                          )}
+                        </span>
+                        <Button
+                          type="button" variant="ghost" size="icon-xs"
+                          onClick={() => setSelectedId(null)}
+                          title="Close editor"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <DayEditForm
+                        day={day}
+                        onUpdate={(updates) => onUpdateDay(day.day_id, updates)}
+                      />
+                    </div>
+                  )}
+                </Fragment>
               ))}
+
+              {/* Add Day card */}
+              <button
+                type="button"
+                onClick={() => {
+                  const last = days[days.length - 1];
+                  onAddDay(
+                    last ? { destination_city: last.destination_city, hotel_name: last.hotel_name, meal_plan: last.meal_plan } : undefined,
+                    last?.day_id,
+                  );
+                }}
+                className="h-40 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground hover:border-foreground/30 hover:bg-muted/20 transition-colors group"
+              >
+                <Plus className="h-6 w-6 group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-medium">Add Day</span>
+              </button>
             </div>
           </SortableContext>
         </DndContext>
@@ -227,207 +249,250 @@ export function ItineraryBuilder({
   );
 }
 
-// ─── Sortable Day Card ───────────────────────────────────────────────────────
+// ─── Kanban Card ──────────────────────────────────────────────────────────────
 
-interface SortableDayCardProps {
+interface KanbanCardProps {
   day: ItineraryDay;
-  isFirst: boolean;
-  isLast: boolean;
-  expanded: boolean;
-  onToggleExpand: () => void;
-  onUpdate: (updates: Partial<ItineraryDay>) => void;
-  onRemove: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
+  isSelected: boolean;
+  onSelect: () => void;
   onDuplicate: () => void;
+  onRemove: () => void;
+  onAddBelow: () => void;
 }
 
-function SortableDayCard({
-  day, isFirst, isLast, expanded, onToggleExpand,
-  onUpdate, onRemove, onMoveUp, onMoveDown, onDuplicate,
-}: SortableDayCardProps) {
+function KanbanCard({ day, isSelected, onSelect, onDuplicate, onRemove, onAddBelow }: KanbanCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: day.day_id });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 50 : undefined,
   };
 
-  const handleRemove = () => {
-    const hasContent = day.day_title && day.day_title !== `Day ${day.day_number}`;
-    if (hasContent) {
-      if (!confirm(`Remove "${day.day_title}"?`)) return;
-    }
-    onRemove();
-  };
+  const activities = day.activities ?? [];
+  const visibleActivities = activities.slice(0, 3);
+  const hiddenCount = activities.length - 3;
+  const shortDesc = day.day_description
+    ? day.day_description.slice(0, 50) + (day.day_description.length > 50 ? '…' : '')
+    : null;
+  const hasTooltipContent = day.meal_plan && day.meal_plan !== 'NONE'
+    || day.transfers
+    || activities.length > 0
+    || shortDesc;
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        'border border-border rounded-lg bg-card transition-shadow',
-        isDragging && 'shadow-xl ring-2 ring-brand-gold/30'
+        'relative group h-40 border rounded-lg bg-card cursor-pointer select-none transition-all',
+        isSelected
+          ? 'border-brand-gold ring-2 ring-brand-gold/30 shadow-md'
+          : 'border-border hover:border-border/60 hover:shadow-sm',
+        isDragging && 'shadow-xl opacity-40',
       )}
+      onClick={onSelect}
     >
-      {/* Header (always visible) */}
-      <div className="flex items-center gap-2 px-3 py-2.5">
-        <button
-          {...attributes}
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-1"
-          aria-label="Drag to reorder"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
+      {/* Card face */}
+      <div className="p-3 h-full flex flex-col justify-between">
+        {/* Top: badge + title */}
+        <div className="space-y-1.5 pr-7">
+          <div className="flex items-center gap-1.5">
+            <Badge className="text-[10px] font-bold px-1.5 py-0 bg-brand-gold/10 text-brand-gold border-brand-gold/20 hover:bg-brand-gold/20 shrink-0">
+              Day {day.day_number}
+            </Badge>
+            {isSelected && <Pencil className="h-3 w-3 text-brand-gold shrink-0" />}
+          </div>
+          <p className="text-sm font-semibold text-foreground leading-tight line-clamp-2">
+            {day.day_title || (
+              <span className="text-muted-foreground font-normal italic text-xs">Untitled day</span>
+            )}
+          </p>
+        </div>
 
-        <button
-          type="button"
-          onClick={onToggleExpand}
-          className="flex-1 min-w-0 flex items-center gap-3 text-left"
-        >
-          <span className="text-[10px] font-bold text-brand-gold uppercase tracking-wider shrink-0">
-            Day {day.day_number}
-          </span>
-          <span className="text-sm font-medium text-foreground truncate">
-            {day.day_title || <span className="text-muted-foreground italic">Untitled day</span>}
-          </span>
+        {/* Bottom: destination + hotel */}
+        <div className="space-y-0.5">
           {day.destination_city && (
-            <span className="text-xs text-muted-foreground hidden sm:flex items-center gap-1 shrink-0">
-              <MapPin className="h-3 w-3" /> {day.destination_city}
-            </span>
+            <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
+              <MapPin className="h-3 w-3 shrink-0" />
+              {day.destination_city}
+            </p>
           )}
-        </button>
-
-        <div className="flex items-center gap-0.5">
-          <Button
-            type="button" variant="ghost" size="icon-xs"
-            onClick={onMoveUp} disabled={isFirst}
-            title="Move up"
-          >
-            <ArrowUp className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            type="button" variant="ghost" size="icon-xs"
-            onClick={onMoveDown} disabled={isLast}
-            title="Move down"
-          >
-            <ArrowDown className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            type="button" variant="ghost" size="icon-xs"
-            onClick={onDuplicate}
-            title="Duplicate (add blank day)"
-          >
-            <Copy className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            type="button" variant="ghost" size="icon-xs"
-            onClick={handleRemove}
-            title="Remove day"
-            className="text-muted-foreground hover:text-destructive"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            type="button" variant="ghost" size="icon-xs"
-            onClick={onToggleExpand}
-            title={expanded ? 'Collapse' : 'Expand'}
-          >
-            {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </Button>
+          {day.hotel_name && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
+              <Building2 className="h-3 w-3 shrink-0" />
+              {day.hotel_name}
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Expanded form */}
-      {expanded && (
-        <div className="px-4 pb-4 pt-2 border-t border-border/50 space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1 sm:col-span-2">
-              <Label className="text-xs">Day Title <span className="text-destructive">*</span></Label>
-              <Input
-                value={day.day_title}
-                onChange={(e) => onUpdate({ day_title: e.target.value })}
-                placeholder="e.g. Arrive in Paris — Eiffel Tower"
-                className="h-8 text-sm"
-              />
-            </div>
+      {/* Drag handle — top-right, shown on hover */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="absolute top-2 right-2 cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity z-10 p-0.5 rounded"
+        onClick={(e) => e.stopPropagation()}
+        aria-label="Drag to reorder"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
 
-            <div className="space-y-1">
-              <Label className="text-xs flex items-center gap-1.5"><MapPin className="h-3 w-3" /> Destination</Label>
-              <Input
-                value={day.destination_city ?? ''}
-                onChange={(e) => onUpdate({ destination_city: e.target.value })}
-                placeholder="e.g. Paris"
-                className="h-8 text-sm"
-              />
-            </div>
+      {/* Action buttons — bottom-right, shown on hover */}
+      <div
+        className="absolute bottom-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Button
+          type="button" variant="ghost" size="icon-xs"
+          className="h-6 w-6 bg-background/90 shadow-sm hover:bg-background"
+          onClick={onAddBelow}
+          title="Add day below"
+        >
+          <Plus className="h-3 w-3" />
+        </Button>
+        <Button
+          type="button" variant="ghost" size="icon-xs"
+          className="h-6 w-6 bg-background/90 shadow-sm hover:bg-background"
+          onClick={onDuplicate}
+          title="Duplicate day"
+        >
+          <Copy className="h-3 w-3" />
+        </Button>
+        <Button
+          type="button" variant="ghost" size="icon-xs"
+          className="h-6 w-6 bg-background/90 shadow-sm hover:bg-background hover:text-destructive"
+          onClick={onRemove}
+          title="Remove day"
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs flex items-center gap-1.5"><Building2 className="h-3 w-3" /> Hotel Name</Label>
-              <Input
-                value={day.hotel_name ?? ''}
-                onChange={(e) => onUpdate({ hotel_name: e.target.value })}
-                placeholder="e.g. Novotel Paris Tour Eiffel"
-                className="h-8 text-sm"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs flex items-center gap-1.5"><Utensils className="h-3 w-3" /> Meal Plan</Label>
-              <Select
-                value={day.meal_plan ?? 'NONE'}
-                onValueChange={(v) => onUpdate({ meal_plan: v as ItineraryMealPlan })}
-              >
-                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {MEAL_PLAN_OPTIONS.map((m) => (
-                    <SelectItem key={m.value} value={m.value} className="text-sm">{m.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs flex items-center gap-1.5"><Bus className="h-3 w-3" /> Transfers</Label>
-              <Input
-                value={day.transfers ?? ''}
-                onChange={(e) => onUpdate({ transfers: e.target.value })}
-                placeholder="e.g. Private transfer (45 min)"
-                className="h-8 text-sm"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <Label className="text-xs">Description</Label>
-            <Textarea
-              value={day.day_description ?? ''}
-              onChange={(e) => onUpdate({ day_description: e.target.value })}
-              rows={4}
-              placeholder="Day narrative — what the guest will experience..."
-              className="text-sm resize-none"
-            />
-          </div>
-
-          <ActivitiesInput
-            value={day.activities ?? []}
-            onChange={(activities) => onUpdate({ activities })}
-          />
-
-          <div className="space-y-1">
-            <Label className="text-xs flex items-center gap-1.5"><ImageIcon className="h-3 w-3" /> Image URL</Label>
-            <Input
-              value={day.image_url ?? ''}
-              onChange={(e) => onUpdate({ image_url: e.target.value })}
-              placeholder="https://… (optional hero image for this day)"
-              className="h-8 text-sm"
-            />
+      {/* Hover tooltip — floats above the card */}
+      {hasTooltipContent && (
+        <div className="absolute bottom-full left-0 mb-2 w-64 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+          <div className="bg-popover border border-border rounded-md shadow-lg p-3 space-y-2 text-xs">
+            {day.meal_plan && day.meal_plan !== 'NONE' && (
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <Utensils className="h-3 w-3 shrink-0" />
+                {MEAL_PLAN_OPTIONS.find((m) => m.value === day.meal_plan)?.label ?? day.meal_plan}
+              </div>
+            )}
+            {day.transfers && (
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <Bus className="h-3 w-3 shrink-0" />
+                <span className="truncate">{day.transfers}</span>
+              </div>
+            )}
+            {activities.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {visibleActivities.map((a, i) => (
+                  <Badge key={i} variant="secondary" className="text-[10px] py-0 px-1.5">{a}</Badge>
+                ))}
+                {hiddenCount > 0 && (
+                  <Badge variant="outline" className="text-[10px] py-0 px-1.5">+{hiddenCount} more</Badge>
+                )}
+              </div>
+            )}
+            {shortDesc && (
+              <p className="text-muted-foreground leading-relaxed">{shortDesc}</p>
+            )}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Day Edit Form ────────────────────────────────────────────────────────────
+
+function DayEditForm({ day, onUpdate }: { day: ItineraryDay; onUpdate: (u: Partial<ItineraryDay>) => void }) {
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-1 sm:col-span-2">
+          <Label className="text-xs">Day Title <span className="text-destructive">*</span></Label>
+          <Input
+            value={day.day_title}
+            onChange={(e) => onUpdate({ day_title: e.target.value })}
+            placeholder="e.g. Arrive in Paris — Eiffel Tower"
+            className="h-8 text-sm"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs flex items-center gap-1.5"><MapPin className="h-3 w-3" /> Destination</Label>
+          <Input
+            value={day.destination_city ?? ''}
+            onChange={(e) => onUpdate({ destination_city: e.target.value })}
+            placeholder="e.g. Paris"
+            className="h-8 text-sm"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs flex items-center gap-1.5"><Building2 className="h-3 w-3" /> Hotel Name</Label>
+          <Input
+            value={day.hotel_name ?? ''}
+            onChange={(e) => onUpdate({ hotel_name: e.target.value })}
+            placeholder="e.g. Novotel Paris Tour Eiffel"
+            className="h-8 text-sm"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs flex items-center gap-1.5"><Utensils className="h-3 w-3" /> Meal Plan</Label>
+          <Select
+            value={day.meal_plan ?? 'NONE'}
+            onValueChange={(v) => onUpdate({ meal_plan: v as ItineraryMealPlan })}
+          >
+            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {MEAL_PLAN_OPTIONS.map((m) => (
+                <SelectItem key={m.value} value={m.value} className="text-sm">{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs flex items-center gap-1.5"><Bus className="h-3 w-3" /> Transfers</Label>
+          <Input
+            value={day.transfers ?? ''}
+            onChange={(e) => onUpdate({ transfers: e.target.value })}
+            placeholder="e.g. Private transfer (45 min)"
+            className="h-8 text-sm"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-1">
+        <Label className="text-xs">Description</Label>
+        <Textarea
+          value={day.day_description ?? ''}
+          onChange={(e) => onUpdate({ day_description: e.target.value })}
+          rows={3}
+          placeholder="Day narrative — what the guest will experience..."
+          className="text-sm resize-none"
+        />
+      </div>
+
+      <ActivitiesInput
+        value={day.activities ?? []}
+        onChange={(activities) => onUpdate({ activities })}
+      />
+
+      <div className="space-y-1">
+        <Label className="text-xs flex items-center gap-1.5"><ImageIcon className="h-3 w-3" /> Image URL</Label>
+        <Input
+          value={day.image_url ?? ''}
+          onChange={(e) => onUpdate({ image_url: e.target.value })}
+          placeholder="https://… (optional hero image for this day)"
+          className="h-8 text-sm"
+        />
+      </div>
     </div>
   );
 }
